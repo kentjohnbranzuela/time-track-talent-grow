@@ -42,7 +42,12 @@ const Employees = () => {
           setEmployees([]);
         } else {
           console.log("Fetched employees:", data);
-          setEmployees(data || []);
+          // Map database columns to our TypeScript type
+          const mappedEmployees: Employee[] = data?.map(emp => ({
+            ...emp,
+            joinDate: emp.joindate, // Map joindate to joinDate
+          })) || [];
+          setEmployees(mappedEmployees);
         }
       } catch (e) {
         console.error("Exception when fetching employees:", e);

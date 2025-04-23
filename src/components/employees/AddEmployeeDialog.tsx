@@ -65,9 +65,14 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
         console.error("Error creating employee:", error);
         toast({ title: "Error creating employee", description: error.message, variant: "destructive" });
       } else if (data && data[0]) {
-        console.log("Employee created:", data[0]);
+        // Convert the database format to our TypeScript type format
+        const newEmployee: Employee = {
+          ...data[0],
+          joinDate: data[0].joindate, // Map joindate to joinDate
+        };
+        console.log("Employee created:", newEmployee);
         toast({ title: "Success", description: "Employee created!" });
-        onEmployeeAdded(data[0]);
+        onEmployeeAdded(newEmployee);
         setOpen(false);
         setForm(defaultForm);
       }
