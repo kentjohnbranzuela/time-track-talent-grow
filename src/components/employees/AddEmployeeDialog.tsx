@@ -24,6 +24,7 @@ type EmployeeFormState = {
   joinDate: string;
   salary: string;
   status: Employee['status']; // Use the type from Employee
+  password: string; // Added password field for creating auth user
 };
 
 const defaultForm: EmployeeFormState = {
@@ -35,7 +36,8 @@ const defaultForm: EmployeeFormState = {
   avatar: '', // If left empty, you can assign a default later
   joinDate: new Date().toISOString().split("T")[0],
   salary: '',
-  status: 'active'
+  status: 'active',
+  password: 'defaultPassword123' // Default password for new users
 };
 
 export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
@@ -63,6 +65,45 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
     }));
   };
 
+  const createAuthUser = async (email: string, password: string) => {
+    try {
+      const { data: authUser, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            employee_id: null, // Will be updated after employee is created
+          }
+        }
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      return authUser.user?.id;
+    } catch (error) {
+      console.error("Error creating auth user:", error);
+      throw error;
+    }
+  };
+
+  const assignUserRole = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from("user_roles")
+        .insert([{ user_id: userId, role: "employee" }]);
+
+      if (error) {
+        throw error;
+      }
+
+    } catch (error) {
+      console.error("Error assigning user role:", error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -73,22 +114,35 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
       return;
     }
     
-    // Create the employee object to insert, making sure to match database column names
-    const employeeToInsert = {
-      name: form.name,
-      position: form.position,
-      department: form.department,
-      email: form.email,
-      phone: form.phone || null,
-      salary: Number(form.salary) || 0,
-      // If avatar is blank, provide a fallback
-      avatar: form.avatar || "/placeholder.svg",
-      joindate: form.joinDate, // Match the database column name (lowercase)
-      status: form.status
-    };
-    
     try {
-      // Insert employee to Supabase
+      // 1. Create Auth User
+      const userId = await createAuthUser(form.email, form.password);
+
+      if (!userId) {
+        toast({ 
+          title: "Failed to create user account", 
+          description: "Could not create authentication account", 
+          variant: "destructive" 
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Create the employee object to insert, making sure to match database column names
+      const employeeToInsert = {
+        name: form.name,
+        position: form.position,
+        department: form.department,
+        email: form.email,
+        phone: form.phone || null,
+        salary: Number(form.salary) || 0,
+        // If avatar is blank, provide a fallback
+        avatar: form.avatar || "/placeholder.svg",
+        joindate: form.joinDate, // Match the database column name (lowercase)
+        status: form.status
+      };
+      
+      // 3. Insert employee to Supabase
       const { data, error } = await supabase
         .from("employees")
         .insert([employeeToInsert])
@@ -98,6 +152,9 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
         console.error("Error creating employee:", error);
         toast({ title: "Error creating employee", description: error.message, variant: "destructive" });
       } else if (data && data[0]) {
+        // 4. Assign user role
+        await assignUserRole(userId);
+        
         // Convert the database format to our TypeScript type format
         const newEmployee: Employee = {
           ...data[0],
@@ -108,7 +165,11 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
             : "inactive") as Employee["status"]
         };
         console.log("Employee created:", newEmployee);
-        toast({ title: "Success", description: "Employee created!" });
+        toast({ 
+          title: "Success", 
+          description: "Employee account created! They can now log in with their email and the default password.", 
+          duration: 5000 
+        });
         onEmployeeAdded(newEmployee);
         setOpen(false);
         setForm(defaultForm);
@@ -144,6 +205,13 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
           <div>
             <Label htmlFor="email">Email</Label>
             <Input name="email" type="email" value={form.email} onChange={handleInput} required />
+          </div>
+          <div>
+            <Label htmlFor="password">Default Password</Label>
+            <Input name="password" type="password" value={form.password} onChange={handleInput} required />
+            <p className="text-xs text-gray-500 mt-1">
+              Employee will use this password to log in for the first time.
+            </p>
           </div>
           <div>
             <Label htmlFor="position">Position</Label>
