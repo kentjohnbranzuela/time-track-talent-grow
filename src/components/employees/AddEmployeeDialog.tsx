@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Employee } from "@/lib/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AddEmployeeDialogProps {
   onEmployeeAdded: (employee: Employee) => void;
@@ -21,7 +22,7 @@ const defaultForm = {
   avatar: '', // If left empty, you can assign a default later
   joinDate: new Date().toISOString().split("T")[0],
   salary: '',
-  status: 'active'
+  status: 'active' as const
 };
 
 export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
@@ -34,6 +35,18 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
     setForm(f => ({
       ...f,
       [e.target.name]: e.target.value
+    }));
+  };
+
+  const handleStatusChange = (value: string) => {
+    // Ensure status is one of the allowed values
+    const status = (["active", "inactive", "on-leave"].includes(value) 
+      ? value 
+      : "active") as Employee["status"];
+      
+    setForm(f => ({
+      ...f,
+      status
     }));
   };
 
@@ -69,6 +82,10 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
         const newEmployee: Employee = {
           ...data[0],
           joinDate: data[0].joindate, // Map joindate to joinDate
+          // Ensure status is one of the allowed values
+          status: (["active", "inactive", "on-leave"].includes(data[0].status)
+            ? data[0].status
+            : "inactive") as Employee["status"]
         };
         console.log("Employee created:", newEmployee);
         toast({ title: "Success", description: "Employee created!" });
@@ -123,6 +140,19 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
           <div>
             <Label htmlFor="salary">Salary</Label>
             <Input name="salary" type="number" value={form.salary} onChange={handleInput} />
+          </div>
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <Select name="status" value={form.status} onValueChange={handleStatusChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="on-leave">On Leave</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label htmlFor="avatar">Avatar URL (optional)</Label>
