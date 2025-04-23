@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MainLayout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Attendance from "./pages/Attendance";
+import Leave from "./pages/Leave";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,11 @@ const App = () => (
           <Route path="/attendance" element={
             <MainLayout>
               <Attendance />
+            </MainLayout>
+          } />
+          <Route path="/leave" element={
+            <MainLayout>
+              <Leave />
             </MainLayout>
           } />
           <Route path="*" element={<NotFound />} />
