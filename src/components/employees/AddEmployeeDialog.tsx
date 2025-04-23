@@ -13,7 +13,20 @@ interface AddEmployeeDialogProps {
   onEmployeeAdded: (employee: Employee) => void;
 }
 
-const defaultForm = {
+// Define a type for the form with the correct status type
+type EmployeeFormState = {
+  name: string;
+  position: string;
+  department: string;
+  email: string;
+  phone: string;
+  avatar: string;
+  joinDate: string;
+  salary: string;
+  status: Employee['status']; // Use the type from Employee
+};
+
+const defaultForm: EmployeeFormState = {
   name: '',
   position: '',
   department: '',
@@ -22,11 +35,11 @@ const defaultForm = {
   avatar: '', // If left empty, you can assign a default later
   joinDate: new Date().toISOString().split("T")[0],
   salary: '',
-  status: 'active' as const
+  status: 'active'
 };
 
 export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
-  const [form, setForm] = useState(defaultForm);
+  const [form, setForm] = useState<EmployeeFormState>(defaultForm);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
