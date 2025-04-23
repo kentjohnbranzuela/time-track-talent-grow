@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/pagination";
 import { Search } from "lucide-react";
 import { Employee } from "@/lib/types";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
 import { EmployeeRowActions } from "@/components/employees/EmployeeRowActions";
 
@@ -28,28 +28,43 @@ const Employees = () => {
 
   // Fetch employees from Supabase
   useEffect(() => {
-    (async () => {
+    const fetchEmployees = async () => {
       setLoading(true);
-      const { data, error } = await supabase.from("employees").select("*");
-      if (error) {
+      try {
+        const { data, error } = await supabase.from("employees").select("*");
+        if (error) {
+          console.error("Error fetching employees:", error);
+          toast({
+            title: "Error fetching employees",
+            description: error.message,
+            variant: "destructive"
+          });
+          setEmployees([]);
+        } else {
+          console.log("Fetched employees:", data);
+          setEmployees(data || []);
+        }
+      } catch (e) {
+        console.error("Exception when fetching employees:", e);
         toast({
-          title: "Error fetching employees",
-          description: error.message,
+          title: "Failed to fetch employees",
+          description: "An unexpected error occurred",
           variant: "destructive"
         });
         setEmployees([]);
-      } else {
-        setEmployees(data || []);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    })();
+    };
+
+    fetchEmployees();
   }, [toast]);
 
   // Filter employees based on search query
   const filteredEmployees = employees.filter(employee => 
-    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.position.toLowerCase().includes(searchQuery.toLowerCase())
+    employee.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.department?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.position?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
   // Paginate employees
@@ -108,39 +123,47 @@ const Employees = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentEmployees.map((employee) => (
-                <TableRow key={employee.id}>
-                  <TableCell>
-                    <div className="w-8 h-8 rounded-full overflow-hidden">
-                      <img 
-                        src={employee.avatar || "/placeholder.svg"} 
-                        alt={employee.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
-                  <TableCell>{employee.position}</TableCell>
-                  <TableCell>{employee.department}</TableCell>
-                  <TableCell className="text-sm">{employee.email}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                      ${employee.status === 'active' ? 'bg-green-100 text-green-800' : 
-                       employee.status === 'inactive' ? 'bg-gray-100 text-gray-800' : 
-                       'bg-yellow-100 text-yellow-800'}`}>
-                      {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
-                    </span>
-                  </TableCell>
-                  {isAdmin && (
+              {currentEmployees.length > 0 ? (
+                currentEmployees.map((employee) => (
+                  <TableRow key={employee.id}>
                     <TableCell>
-                      <EmployeeRowActions
-                        employee={employee}
-                        onStatusChange={handleStatusChange}
-                      />
+                      <div className="w-8 h-8 rounded-full overflow-hidden">
+                        <img 
+                          src={employee.avatar || "/placeholder.svg"} 
+                          alt={employee.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     </TableCell>
-                  )}
+                    <TableCell className="font-medium">{employee.name}</TableCell>
+                    <TableCell>{employee.position}</TableCell>
+                    <TableCell>{employee.department}</TableCell>
+                    <TableCell className="text-sm">{employee.email}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                        ${employee.status === 'active' ? 'bg-green-100 text-green-800' : 
+                         employee.status === 'inactive' ? 'bg-gray-100 text-gray-800' : 
+                         'bg-yellow-100 text-yellow-800'}`}>
+                        {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
+                      </span>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <EmployeeRowActions
+                          employee={employee}
+                          onStatusChange={handleStatusChange}
+                        />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    No employees found. {employees.length > 0 ? "Try adjusting your search." : "Add employees to get started."}
+                  </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         )}
@@ -175,4 +198,3 @@ const Employees = () => {
 };
 
 export default Employees;
-

@@ -4,7 +4,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Employee } from "@/lib/types";
 
@@ -48,24 +48,39 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
     }
     const employeeToInsert = {
       ...form,
-      salary: Number(form.salary),
+      salary: Number(form.salary) || 0,
       // If avatar is blank, provide a fallback
       avatar: form.avatar || "/placeholder.svg",
+      joindate: form.joinDate, // Match database column name
     };
-    // Insert employee to Supabase
-    const { data, error } = await supabase
-      .from("employees")
-      .insert([employeeToInsert])
-      .select();
-    if (error) {
-      toast({ title: "Error creating employee", description: error.message, variant: "destructive" });
-    } else if (data && data[0]) {
-      toast({ title: "Success", description: "Employee created!" });
-      onEmployeeAdded(data[0]);
-      setOpen(false);
-      setForm(defaultForm);
+    
+    try {
+      // Insert employee to Supabase
+      const { data, error } = await supabase
+        .from("employees")
+        .insert([employeeToInsert])
+        .select();
+        
+      if (error) {
+        console.error("Error creating employee:", error);
+        toast({ title: "Error creating employee", description: error.message, variant: "destructive" });
+      } else if (data && data[0]) {
+        console.log("Employee created:", data[0]);
+        toast({ title: "Success", description: "Employee created!" });
+        onEmployeeAdded(data[0]);
+        setOpen(false);
+        setForm(defaultForm);
+      }
+    } catch (e) {
+      console.error("Exception when creating employee:", e);
+      toast({ 
+        title: "Failed to create employee", 
+        description: "An unexpected error occurred", 
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -116,4 +131,3 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
     </Dialog>
   );
 }
-
