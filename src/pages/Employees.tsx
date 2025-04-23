@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,43 @@ import {
   Pagination, PaginationContent, PaginationItem, 
   PaginationNext, PaginationPrevious 
 } from "@/components/ui/pagination";
-import { UserPlus, Search } from "lucide-react";
-import { employees } from '@/lib/data';
+import { Search } from "lucide-react";
+import { Employee } from "@/lib/types";
+import { supabase } from "@/lib/supabaseClient";
+import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
+import { EmployeeRowActions } from "@/components/employees/EmployeeRowActions";
+
+// For demo: Set admin = true for access to features.
+const isAdmin = true;
 
 const Employees = () => {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const employeesPerPage = 4;
-  
+
+  // Fetch employees from Supabase
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from("employees").select("*");
+      if (error) {
+        toast({
+          title: "Error fetching employees",
+          description: error.message,
+          variant: "destructive"
+        });
+        setEmployees([]);
+      } else {
+        setEmployees(data || []);
+      }
+      setLoading(false);
+    })();
+  }, [toast]);
+
   // Filter employees based on search query
   const filteredEmployees = employees.filter(employee => 
     employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -28,31 +56,27 @@ const Employees = () => {
   const indexOfLastEmployee = currentPage * employeesPerPage;
   const indexOfFirstEmployee = indexOfLastEmployee - employeesPerPage;
   const currentEmployees = filteredEmployees.slice(indexOfFirstEmployee, indexOfLastEmployee);
-  
   const totalPages = Math.ceil(filteredEmployees.length / employeesPerPage);
-  
-  const handleAddEmployee = () => {
-    toast({
-      title: "Add Employee",
-      description: "Opening new employee form.",
-    });
+
+  // Add employee callback
+  const handleEmployeeAdded = (newEmployee: Employee) => {
+    setEmployees((prev) => [newEmployee, ...prev]);
   };
-  
-  const handleViewDetails = (id: string) => {
-    toast({
-      title: "Employee Details",
-      description: `Viewing details for employee ${id}`,
-    });
+
+  // Update status callback
+  const handleStatusChange = (id: string, newStatus: Employee["status"]) => {
+    setEmployees((prev) =>
+      prev.map(emp =>
+        emp.id === id ? { ...emp, status: newStatus } : emp
+      )
+    );
   };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Employee Directory</h1>
-        <Button onClick={handleAddEmployee}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add Employee
-        </Button>
+        {isAdmin && <AddEmployeeDialog onEmployeeAdded={handleEmployeeAdded} />}
       </div>
       
       <div className="relative">
@@ -68,6 +92,9 @@ const Employees = () => {
       
       <Card>
         <CardContent className="p-0">
+        {loading ? (
+          <div className="p-8 text-center">Loading...</div>
+        ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -77,7 +104,7 @@ const Employees = () => {
                 <TableHead>Department</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {isAdmin && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -86,7 +113,7 @@ const Employees = () => {
                   <TableCell>
                     <div className="w-8 h-8 rounded-full overflow-hidden">
                       <img 
-                        src={employee.avatar} 
+                        src={employee.avatar || "/placeholder.svg"} 
                         alt={employee.name}
                         className="w-full h-full object-cover"
                       />
@@ -104,19 +131,19 @@ const Employees = () => {
                       {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleViewDetails(employee.id)}
-                    >
-                      View
-                    </Button>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      <EmployeeRowActions
+                        employee={employee}
+                        onStatusChange={handleStatusChange}
+                      />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+        )}
         </CardContent>
       </Card>
       
@@ -148,3 +175,4 @@ const Employees = () => {
 };
 
 export default Employees;
+
