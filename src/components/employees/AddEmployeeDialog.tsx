@@ -72,12 +72,19 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
       setLoading(false);
       return;
     }
+    
+    // Create the employee object to insert, making sure to match database column names
     const employeeToInsert = {
-      ...form,
+      name: form.name,
+      position: form.position,
+      department: form.department,
+      email: form.email,
+      phone: form.phone || null,
       salary: Number(form.salary) || 0,
       // If avatar is blank, provide a fallback
       avatar: form.avatar || "/placeholder.svg",
-      joindate: form.joinDate, // Match database column name
+      joindate: form.joinDate, // Match the database column name (lowercase)
+      status: form.status
     };
     
     try {
@@ -94,7 +101,7 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
         // Convert the database format to our TypeScript type format
         const newEmployee: Employee = {
           ...data[0],
-          joinDate: data[0].joindate, // Map joindate to joinDate
+          joinDate: data[0].joindate, // Map joindate back to joinDate for our app
           // Ensure status is one of the allowed values
           status: (["active", "inactive", "on-leave"].includes(data[0].status)
             ? data[0].status
@@ -153,6 +160,10 @@ export function AddEmployeeDialog({ onEmployeeAdded }: AddEmployeeDialogProps) {
           <div>
             <Label htmlFor="salary">Salary</Label>
             <Input name="salary" type="number" value={form.salary} onChange={handleInput} />
+          </div>
+          <div>
+            <Label htmlFor="joinDate">Join Date</Label>
+            <Input name="joinDate" type="date" value={form.joinDate} onChange={handleInput} />
           </div>
           <div>
             <Label htmlFor="status">Status</Label>
